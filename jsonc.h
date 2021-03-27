@@ -8,11 +8,13 @@
 /// Типы ошибок.
 typedef enum {
     JsonSuccess,        // нет ошибок.
+    JsonJustInit,       // дефолтное значение.
     JsonErrorUnknow,    // ошибка без описания, ошибка в коде.
     JsonErrorEnd,       // неожиданный конец.
     JsonErrorSyntax,    // ошибка в синтаксисе.
     JsonErrorKey,       // ошибка в ключе (ключ без кавычек и тд).
     JsonErrorValue,     // ошибка в значении.
+    JsonErrorFile,      // ошибка связана с работой с файлом.
     JsonErrorPath,      // ошибка в keyPath.
 
     JsonErrorCount
@@ -59,19 +61,34 @@ typedef struct {
 } JsonCStruct;
 
 /*!
- * \brief Парсит JSON файл.
+ * \brief Парсит JSON строку.
  *
  * После вызова функции, можно проверить поле error на наличие ошибки.
  * \param jsonTextFull - строка JSON файла.
  * \return структуру JsonCStruct.
  */
-JsonCStruct openJsonFile(const char *jsonTextFull);
+JsonCStruct openJsonFromStr(const char *jsonTextFull);
+
+/*!
+ * \brief Парсит JSON файл.
+ *
+ * Не забыть, для освобождения этой структуры вызвать freeJsonCStructFull().
+ * \param fileName - имя файла для чтения.
+ * \return структуру JsonCStruct.
+ */
+JsonCStruct openJsonFromFile(const char *fileName);
 
 /*!
  * \brief Освобождает память parentItem и потомков.
  * \param jStruct - структура, которую возвращает openJsonFile.
  */
-void closeJsonCStruct(JsonCStruct jStruct);
+void freeJsonCStruct(JsonCStruct jStruct);
+
+/*!
+ * \brief Освобождает не только parentItem но и jsonTextFull.
+ * \param jStruct - структура, которую возвращает openJsonFile.
+ */
+void freeJsonCStructFull(JsonCStruct jStruct);
 
 /*!
  * \brief Записывает Json в файл.

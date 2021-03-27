@@ -43,7 +43,7 @@ static void initJsonItem(JsonItem *r) {
 static void initJsonCStruct(JsonCStruct *r) {
     r->jsonTextFull = NULL;
     r->parentItem = NULL;
-    r->error = JsonSuccess;
+    r->error = JsonJustInit;
 }
 
 
@@ -318,6 +318,7 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
         (*ppStruct) = malloc(sizeof(JsonCStruct));
         if (*ppStruct == NULL) { return NULL; }
         initJsonCStruct(*ppStruct);
+        (*ppStruct)->error = JsonSuccess;
         (*ppStruct)->jsonTextFull = json;
         *ppCurrent = malloc(sizeof(JsonItem));
         if (*ppCurrent == NULL) { return NULL; }
@@ -413,7 +414,7 @@ static void freeJsonItem(JsonItem* item) {
     free(item);
 }
 
-JsonCStruct openJsonFile(const char *jsonTextFull) {
+JsonCStruct openJsonFromStr(const char *jsonTextFull) {
     JsonItem *jCurrent = NULL;
     JsonCStruct *jStruct = NULL;
     parseValue(jsonTextFull, &jCurrent, &jStruct);
@@ -427,7 +428,35 @@ JsonCStruct openJsonFile(const char *jsonTextFull) {
     return r;
 }
 
-void closeJsonCStruct(JsonCStruct jStruct) {
+
+JsonCStruct openJsonFromFile(const char *fileName) {
+    JsonCStruct r;
+    initJsonCStruct(&r);
+    FILE *ptrFile = fopen(fileName, "r");
+    if (ptrFile == NULL) {
+        r.error = JsonErrorFile;
+        return r;
+    }
+    fseek(ptrFile, 0, SEEK_END);
+    long lSize = ftell(ptrFile) + 1;    // +1 для нулевого символа
+    rewind(ptrFile);
+
+    char *buffer = (char*)malloc(sizeof(char) * lSize);
+    if (buffer == NULL) {
+        r.error = JsonErrorFile;
+        return r;
+    }
+
+    size_t result = fread(buffer, 1, lSize, ptrFile) + 1;
+    buffer[lSize - 1] = 0; // добавления нулевого символа
+    if (result != (size_t)lSize) {
+        r.error = JsonErrorFile;
+        return r;
+    }
+    return openJsonFromStr(buffer);
+}
+
+void freeJsonCStruct(JsonCStruct jStruct) {
     freeJsonItem(jStruct.parentItem);
 }
 
