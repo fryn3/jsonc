@@ -456,6 +456,18 @@ JsonCStruct openJsonFromFile(const char *fileName) {
     return openJsonFromStr(buffer);
 }
 
+JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct) {
+    FILE *ptrFile = fopen(fileName, "w");
+    if (ptrFile == NULL) {
+        return JsonErrorFile;
+    }
+    int32_t r = fprintJsonItem(ptrFile, jStruct.parentItem);
+    if (r < 0) {
+        return JsonErrorFile;
+    }
+    return JsonSuccess;
+}
+
 void freeJsonCStruct(JsonCStruct jStruct) {
     freeJsonItem(jStruct.parentItem);
 }

@@ -78,6 +78,7 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull);
  */
 JsonCStruct openJsonFromFile(const char *fileName);
 
+JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct);
 /*!
  * \brief Освобождает память parentItem и потомков.
  * \param jStruct - структура, которую возвращает openJsonFile.
