@@ -155,6 +155,8 @@ typedef struct KeyItemTypeDef {
  */
 bool parseKeyPath(const char *keyPath, KeyItem **keyItem);
 
+void freeKeyItem(KeyItem *keyItem);
+
 /*!
  * \brief Поиск элемента по ключу.
  * \param keyItem - инициализированный ключ.

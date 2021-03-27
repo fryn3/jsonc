@@ -472,6 +472,11 @@ void freeJsonCStruct(JsonCStruct jStruct) {
     freeJsonItem(jStruct.parentItem);
 }
 
+void freeJsonCStructFull(JsonCStruct jStruct) {
+    freeJsonCStruct(jStruct);
+    free((void*)jStruct.jsonTextFull);
+}
+
 int32_t fprintJsonItem(FILE *file, const JsonItem *item) {
     return fprintJsonItemOffset(file, item, 0);
 }
@@ -600,6 +605,13 @@ bool parseKeyPath(const char *keyPath, KeyItem **keyItem) {
     }
     *keyItem = root;
     return true;
+}
+
+void freeKeyItem(KeyItem *keyItem) {
+    if (keyItem->child) {
+        freeKeyItem(keyItem->child);
+    }
+    free(keyItem);
 }
 
 JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root) {
