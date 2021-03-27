@@ -81,7 +81,7 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull);
  * \param fileName - имя файла для чтения.
  * \return структуру JsonCStruct.
  */
-JsonCStruct openJsonFromFile(char *fileName);
+JsonCStruct openJsonFromFile(const char *fileName);
 
 JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct);
 /*!

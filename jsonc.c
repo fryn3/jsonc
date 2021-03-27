@@ -429,7 +429,7 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull) {
 }
 
 
-JsonCStruct openJsonFromFile(char *fileName) {
+JsonCStruct openJsonFromFile(const char *fileName) {
     JsonCStruct r;
     initJsonCStruct(&r);
     FILE *ptrFile = fopen(fileName, "r");
