@@ -1,6 +1,11 @@
 #ifndef JSONC_H
 #define JSONC_H
 
+
+#if defined(__cplusplus) || defined(__cplusplus__)
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -76,7 +81,7 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull);
  * \param fileName - имя файла для чтения.
  * \return структуру JsonCStruct.
  */
-JsonCStruct openJsonFromFile(const char *fileName);
+JsonCStruct openJsonFromFile(char *fileName);
 
 JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct);
 /*!
@@ -157,5 +162,10 @@ bool parseKeyPath(const char *keyPath, KeyItem **keyItem);
  * \return найденный элемент.
  */
 JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root);
+
+
+#if defined(__cplusplus) || defined(__cplusplus__)
+}
+#endif
 
 #endif  /* ndef JSONC_H */
