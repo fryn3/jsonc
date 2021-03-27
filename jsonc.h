@@ -59,8 +59,8 @@ typedef struct JsonItemTypeDef {
 typedef struct {
     /// Входной текст.
     const char *jsonTextFull;
-    /// Указатель на родительский элемент.
-    JsonItem *parentItem;
+    /// Указатель на корневой элемент.
+    JsonItem *rootItem;
     /// После ф-ций проверять на ошибку.
     JsonErrorEnum error;
 } JsonCStruct;
@@ -87,9 +87,10 @@ JsonCStruct openJsonFromFile(const char *fileName);
  * \brief Сохраняет в JSON формате.
  * \param fileName - имя файла.
  * \param jStruct - структура JSON.
- * \return код ошибки.
+ * \return отрицательное число при ошибке, иначе количество записанных
+ * символов.
  */
-JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct);
+int32_t saveJsonCStruct(const char *fileName, JsonCStruct jStruct);
 
 /*!
  * \brief Освобождает память parentItem и потомков.
@@ -102,6 +103,89 @@ void freeJsonCStruct(JsonCStruct jStruct);
  * \param jStruct - структура, которую возвращает openJsonFile.
  */
 void freeJsonCStructFull(JsonCStruct jStruct);
+
+/*!
+ * \brief Создает инициализированный JsonItem.
+ *
+ * Не забыть вызвать freeJsonItem для освобождении памяти.
+ * \return JsonItem.
+ */
+JsonItem *createItem(void);
+
+/*!
+ * \brief Рекурсивно освобождает память.
+ * \param item - объект удаления.
+ */
+void freeJsonItem(JsonItem *item);
+
+/*!
+ * \brief Рекурсивно освобождает память так же у полей key & str.
+ * \param item - объект удаления.
+ */
+void freeJsonItemFull(JsonItem *item);
+
+/*!
+ * \brief Добавляет вложенный элемент с инициализированным родителем.
+ *
+ * Текущий элемент должен быть массивом или объектом.
+ * \param pCurrent - элемент родитель.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChild(JsonItem *pCurrent);
+
+/*!
+ * \brief Добавляет вложенный элемент с указанным типом.
+ * \param pCurrent - элемент родитель.
+ * \param type - тип элемента.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChildType(JsonItem *pCurrent, JsonTypeEnum type);
+
+/*!
+ * \brief Добавляет вложенный элемент.
+ *
+ * Если key не заканчивается нулевым символом, обязательно нужно
+ * использовать addChildKeyLenType().
+ * \param pCurrent - элемент родитель.
+ * \param key - строка с нулевым символом в конце.
+ * \param type - тип элемента.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChildKeyType(JsonItem *pCurrent, const char *key, JsonTypeEnum type);
+JsonItem *addChildKeyLenType(JsonItem *pCurrent, const char *key, size_t keyLen, JsonTypeEnum type);
+
+
+/*!
+ * \brief Добавляет вложенный элемент типа JsonTypeBool.
+ * \param pCurrent - элемент родитель.
+ * \param boolValue - значение элемента.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChildBool(JsonItem *pCurrent, bool boolValue);
+JsonItem *addChildKeyBool(JsonItem *pCurrent, const char *key, bool boolValue);
+JsonItem *addChildKeyLenBool(JsonItem *pCurrent, const char *key, size_t keyLen, bool boolValue);
+
+/*!
+ * \brief Добавляет вложенный элемент типа JsonTypeNumber.
+ * \param pCurrent - элемент родитель.
+ * \param number - значение элемента.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChildNumber(JsonItem *pCurrent, double number);
+JsonItem *addChildKeyNumber(JsonItem *pCurrent, const char *key, double number);
+JsonItem *addChildKeyLenNumber(JsonItem *pCurrent, const char *key, size_t keyLen, double number);
+
+/*!
+ * \brief Добавляет вложенный элемент типа JsonTypeString.
+ * \param pCurrent - элемент родитель.
+ * \param str - значение элемента.
+ * \return указатель на вложенный элемент.
+ */
+JsonItem *addChildStr(JsonItem *pCurrent, const char *str);
+JsonItem *addChildStrLen(JsonItem *pCurrent, const char *str, size_t strLen);
+JsonItem *addChildKeyStr(JsonItem *pCurrent, const char *key, const char *str);
+JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str);
+JsonItem *addChildKeyLenStrLen(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str, size_t strLen);
 
 /*!
  * \brief Находит дочерний элемент по ключу.
@@ -147,6 +231,17 @@ int32_t fprintJsonItemOffset(FILE *file, const JsonItem *item, uint32_t offset);
  * \return количество записанных символов.
  */
 int32_t fprintJsonStruct(FILE *file, JsonCStruct jStruct);
+
+/*!
+ * \brief Сохраняет в JSON формате.
+ *
+ * Для корректной записи, у root не должно быть родителя.
+ * \param filename - имя файла.
+ * \param root - корневой элемент.
+ * \return отрицательное число при ошибке, иначе количество записанных
+ * символов.
+ */
+int32_t saveJsonItem(const char *fileName, const JsonItem* root);
 
 // KeyPath
 

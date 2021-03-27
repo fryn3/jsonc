@@ -20,6 +20,7 @@ const char * const TRUE_STR = "true";
 const size_t TRUE_STR_LEN = 4;
 
 static const size_t INIT_LEN = SIZE_MAX;
+
 /*!
  * \brief Инициализирует JsonItem.
  * \param r - выходная структура.
@@ -43,7 +44,7 @@ static void initJsonItem(JsonItem *r) {
  */
 static void initJsonCStruct(JsonCStruct *r) {
     r->jsonTextFull = NULL;
-    r->parentItem = NULL;
+    r->rootItem = NULL;
     r->error = JsonJustInit;
 }
 
@@ -265,36 +266,6 @@ static const char *firstChar(const char *jsonText) {
     return NULL;
 }
 
-/*!
- * \brief Добавляет вложенный элемент.
- * \param pCurrent - элемент родитель.
- * \return ссылку на вложенный элемент.
- */
-static JsonItem *addChild(JsonItem *pCurrent) {
-    if (pCurrent->_childrenReserve == pCurrent->childrenCount) {
-        if (pCurrent->_childrenReserve == 0) {
-            pCurrent->_childrenReserve = 1;
-        } else {
-            pCurrent->_childrenReserve *= 2;
-        }
-        JsonItem *jNewArray = malloc(pCurrent->_childrenReserve * sizeof (JsonItem));
-        if (jNewArray == NULL) { return NULL; }
-        for (size_t i = 0; i < pCurrent->childrenCount; ++i) {
-            jNewArray[i] = pCurrent->childrenList[i];
-            for (size_t j = 0; j < jNewArray[i].childrenCount; ++j) {
-                jNewArray[i].childrenList[j].parent = jNewArray + i;
-            }
-        }
-        free(pCurrent->childrenList);
-        pCurrent->childrenList = jNewArray;
-    }
-    JsonItem *child = &pCurrent->childrenList[pCurrent->childrenCount];
-    initJsonItem(child);
-    ++(pCurrent->childrenCount);
-    child->parent = pCurrent;
-    return child;
-}
-
 // вспомогательный макрос для функции parseValue.
 #define IF_TO_ERROR(x, err) \
     do { \
@@ -325,7 +296,7 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
         *ppCurrent = malloc(sizeof(JsonItem));
         if (*ppCurrent == NULL) { return NULL; }
         initJsonItem(*ppCurrent);
-        (*ppStruct)->parentItem = *ppCurrent;
+        (*ppStruct)->rootItem = *ppCurrent;
         (*ppStruct)->error = JsonSuccess;
     }
     JsonItem *pCurrent = *ppCurrent;
@@ -405,17 +376,6 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
     return it1;
 }
 
-/*!
- * \brief Рекурсивно освобождает память.
- * \param item - объект удаления.
- */
-static void freeJsonItem(JsonItem *item) {
-    if (item->childrenList) {
-        freeJsonItem(item->childrenList);
-    }
-    free(item);
-}
-
 JsonCStruct openJsonFromStr(const char *jsonTextFull) {
     JsonItem *jCurrent = NULL;
     JsonCStruct *jStruct = NULL;
@@ -429,7 +389,6 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull) {
     free(jStruct);
     return r;
 }
-
 
 JsonCStruct openJsonFromFile(const char *fileName) {
     JsonCStruct r;
@@ -458,20 +417,16 @@ JsonCStruct openJsonFromFile(const char *fileName) {
     return openJsonFromStr(buffer);
 }
 
-JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct) {
+int32_t saveJsonCStruct(const char *fileName, JsonCStruct jStruct) {
     FILE *ptrFile = fopen(fileName, "w");
     if (ptrFile == NULL) {
-        return JsonErrorFile;
+        return -1;
     }
-    int32_t r = fprintJsonItem(ptrFile, jStruct.parentItem);
-    if (r < 0) {
-        return JsonErrorFile;
-    }
-    return JsonSuccess;
+    return fprintJsonItem(ptrFile, jStruct.rootItem);
 }
 
 void freeJsonCStruct(JsonCStruct jStruct) {
-    freeJsonItem(jStruct.parentItem);
+    freeJsonItem(jStruct.rootItem);
 }
 
 void freeJsonCStructFull(JsonCStruct jStruct) {
@@ -479,6 +434,174 @@ void freeJsonCStructFull(JsonCStruct jStruct) {
     free((void*)jStruct.jsonTextFull);
 }
 
+JsonItem *createItem(void) {
+    JsonItem *jIt = (JsonItem*)malloc(sizeof (JsonItem));
+    initJsonItem(jIt);
+    return jIt;
+}
+
+void freeJsonItem(JsonItem *item) {
+    if (item->childrenList) {
+        freeJsonItem(item->childrenList);
+    }
+    free(item);
+}
+
+void freeJsonItemFull(JsonItem *item) {
+    if (item->childrenList) {
+        freeJsonItemFull(item->childrenList);
+    }
+    free((void*)item->key);
+    free((void*)item->str);
+    free(item);
+}
+
+JsonItem *addChild(JsonItem *pCurrent) {
+    if (pCurrent->type != JsonTypeArray
+            && pCurrent->type != JsonTypeObject) {
+        return NULL;
+    }
+    if (pCurrent->_childrenReserve == pCurrent->childrenCount) {
+        if (pCurrent->_childrenReserve == 0) {
+            pCurrent->_childrenReserve = 1;
+        } else {
+            pCurrent->_childrenReserve *= 2;
+        }
+        JsonItem *jNewArray = malloc(pCurrent->_childrenReserve * sizeof (JsonItem));
+        if (jNewArray == NULL) { return NULL; }
+        for (size_t i = 0; i < pCurrent->childrenCount; ++i) {
+            jNewArray[i] = pCurrent->childrenList[i];
+            for (size_t j = 0; j < jNewArray[i].childrenCount; ++j) {
+                jNewArray[i].childrenList[j].parent = jNewArray + i;
+            }
+        }
+        free(pCurrent->childrenList);
+        pCurrent->childrenList = jNewArray;
+    }
+    JsonItem *child = &pCurrent->childrenList[pCurrent->childrenCount];
+    initJsonItem(child);
+    ++(pCurrent->childrenCount);
+    child->parent = pCurrent;
+    return child;
+}
+
+JsonItem *addChildType(JsonItem *pCurrent, JsonTypeEnum type) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = type;
+    return r;
+}
+
+JsonItem *addChildKeyType(JsonItem *pCurrent, const char *key, JsonTypeEnum type) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = type;
+    r->key = key;
+    r->keyLen = strlen(key);
+    return r;
+}
+
+JsonItem *addChildKeyLenType(JsonItem *pCurrent, const char *key, size_t keyLen, JsonTypeEnum type) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = type;
+    r->key = key;
+    r->keyLen = keyLen;
+    return r;
+}
+
+JsonItem *addChildBool(JsonItem *pCurrent, bool boolValue) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeBool;
+    r->number = boolValue;
+    return r;
+}
+
+JsonItem *addChildKeyBool(JsonItem *pCurrent, const char *key, bool boolValue) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeBool;
+    r->key = key;
+    r->keyLen = strlen(key);
+    r->number = boolValue;
+    return r;
+}
+
+JsonItem *addChildKeyLenBool(JsonItem *pCurrent, const char *key, size_t keyLen, bool boolValue) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeBool;
+    r->key = key;
+    r->keyLen = keyLen;
+    r->number = boolValue;
+    return r;
+}
+
+JsonItem *addChildNumber(JsonItem *pCurrent, double number) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeNumber;
+    r->number = number;
+    return r;
+}
+
+JsonItem *addChildKeyNumber(JsonItem *pCurrent, const char *key, double number) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeNumber;
+    r->key = key;
+    r->keyLen = strlen(key);
+    r->number = number;
+    return r;
+}
+
+JsonItem *addChildKeyLenNumber(JsonItem *pCurrent, const char *key, size_t keyLen, double number) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeNumber;
+    r->key = key;
+    r->keyLen = keyLen;
+    r->number = number;
+    return r;
+}
+
+JsonItem *addChildStr(JsonItem *pCurrent, const char *str) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->str = str;
+    r->strLen = strlen(str);
+    return r;
+}
+
+JsonItem *addChildStrLen(JsonItem *pCurrent, const char *str, size_t strLen) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->str = str;
+    r->strLen = strLen;
+    return r;
+}
+
+JsonItem *addChildKeyStr(JsonItem *pCurrent, const char *key, const char *str) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->key = key;
+    r->keyLen = strlen(key);
+    r->str = str;
+    r->strLen = strlen(str);
+    return r;
+}
+
+JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->key = key;
+    r->keyLen = keyLen;
+    r->str = str;
+    r->strLen = strlen(str);
+    return r;
+}
+
+JsonItem *addChildKeyLenStrLen(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str, size_t strLen) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->key = key;
+    r->keyLen = keyLen;
+    r->str = str;
+    r->strLen = strLen;
+    return r;
+}
 
 JsonItem *findChildStr(const JsonItem *root, const char *key, size_t keyLen) {
     if (!root) {
@@ -554,11 +677,18 @@ int32_t fprintJsonStruct(FILE *file, JsonCStruct jStruct) {
         printf("error = %d\n", jStruct.error);
         return 0;
     }
-    int32_t s = fprintJsonItem(file, jStruct.parentItem);
+    int32_t s = fprintJsonItem(file, jStruct.rootItem);
     s += fprintf(file, "\n");
     return s;
 }
 
+int32_t saveJsonItem(const char *fileName, const JsonItem* root) {
+    FILE *ptrFile = fopen(fileName, "w");
+    if (ptrFile == NULL) {
+        return -1;
+    }
+    return fprintJsonItem(ptrFile, root);
+}
 // KeyPath
 
 const char* const INTO = "->";
