@@ -12,11 +12,11 @@ const char END_STR = 0;
 /*!
  * \brief Ключевые слова и их длина.
  */
-const char *NULL_STR = "null";
+const char * const NULL_STR = "null";
 const size_t NULL_STR_LEN = 4;
-const char *FALSE_STR = "false";
+const char * const FALSE_STR = "false";
 const size_t FALSE_STR_LEN = 5;
-const char *TRUE_STR = "true";
+const char * const TRUE_STR = "true";
 const size_t TRUE_STR_LEN = 4;
 
 /*!
@@ -407,7 +407,7 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
  * \brief Рекурсивно освобождает память.
  * \param item - объект удаления.
  */
-static void freeJsonItem(JsonItem* item) {
+static void freeJsonItem(JsonItem *item) {
     if (item->childrenList) {
         freeJsonItem(item->childrenList);
     }
@@ -531,7 +531,7 @@ int32_t fprintJsonStruct(FILE *file, JsonCStruct jStruct) {
 
 // KeyPath
 
-const char* INTO = "->";
+const char* const INTO = "->";
 const size_t INTO_SIZE = 2;
 
 /*!
@@ -550,7 +550,7 @@ static void initKeyItem(KeyItem *r) {
  * \param str - строка, где происходит проверка.
  * \return NULL - если не совпало, иначе на первый символ после INTO.
  */
-static const char* checkInto(const char* str) {
+static const char* checkInto(const char *str) {
     for (size_t i = 0; i < INTO_SIZE; ++i) {
         if (str[i] != INTO[i]) {
             return NULL;

@@ -117,17 +117,18 @@ int32_t fprintJsonItemOffset(FILE *file, const JsonItem *item, uint32_t offset);
 int32_t fprintJsonStruct(FILE *file, JsonCStruct jStruct);
 
 // KeyPath
+
 /*!
  * \brief Ключевое слово для поиска вложенных ключей.
  *
  * Например поиск ключа "\"pins\"[3]->\"position\"[1]->\"slot\"".
  */
-const char* INTO;   // "->"
+extern const char* const INTO;   // "->"
 
 /*!
  * \brief Размер ключевого слова.
  */
-const size_t INTO_SIZE; // 2
+extern const size_t INTO_SIZE; // 2
 
 /*!
  * \brief Структура парсинга пути.
