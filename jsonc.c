@@ -321,26 +321,25 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
         (*ppStruct) = malloc(sizeof(JsonCStruct));
         if (*ppStruct == NULL) { return NULL; }
         initJsonCStruct(*ppStruct);
-        (*ppStruct)->error = JsonSuccess;
         (*ppStruct)->jsonTextFull = json;
         *ppCurrent = malloc(sizeof(JsonItem));
         if (*ppCurrent == NULL) { return NULL; }
         initJsonItem(*ppCurrent);
         (*ppStruct)->parentItem = *ppCurrent;
+        (*ppStruct)->error = JsonSuccess;
     }
     JsonItem *pCurrent = *ppCurrent;
-    IF_TO_ERROR(!pCurrent, JsonErrorUnknow);
     const char *it1 = json;
     const char *it2 = NULL;
     it1 = firstChar(json);
-    if (strcmp(it1, NULL_STR)) {
+    if (strcmp(it1, NULL_STR) == 0) {
         pCurrent->type = JsonTypeNull;
         it1 += NULL_STR_LEN;
-    } else if (strcmp(it1, FALSE_STR)) {
+    } else if (strcmp(it1, FALSE_STR) == 0) {
         pCurrent->type = JsonTypeBool;
         pCurrent->number = 0;
         it1 += FALSE_STR_LEN;
-    } else if (strcmp(it1, TRUE_STR)) {
+    } else if (strcmp(it1, TRUE_STR) == 0) {
         pCurrent->type = JsonTypeBool;
         pCurrent->number = 1;
         it1 += TRUE_STR_LEN;
