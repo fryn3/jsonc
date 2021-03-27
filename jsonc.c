@@ -19,6 +19,7 @@ const size_t FALSE_STR_LEN = 5;
 const char * const TRUE_STR = "true";
 const size_t TRUE_STR_LEN = 4;
 
+static const size_t INIT_LEN = SIZE_MAX;
 /*!
  * \brief Инициализирует JsonItem.
  * \param r - выходная структура.
@@ -26,11 +27,11 @@ const size_t TRUE_STR_LEN = 4;
 static void initJsonItem(JsonItem *r) {
     r->parent = NULL;
     r->key = NULL;
-    r->keyLen = UINT32_MAX;
+    r->keyLen = INIT_LEN;
     r->type = JsonTypeCount;
     r->number = 1E+37;
     r->str = NULL;
-    r->strLen = UINT32_MAX;
+    r->strLen = INIT_LEN;
     r->childrenList = NULL;
     r->childrenCount = 0;
     r->_childrenReserve = 0;
@@ -193,23 +194,25 @@ static const char *myAtof(const char *str, double *number) {
 }
 
 /*!
- * \brief Сравнение массивов.
- * \param arr1
- * \param arr2
- * \param n - длина сравнений.
+ * \brief Сравнение строк.
+ *
+ * Сравнение идет до n или до конца строки если окажется раньше.
+ * \param str1
+ * \param str2
+ * \param n - максимальная длина сравнений.
  * \return true, если различий нет, иначе false.
  */
-static bool myMemcmp(const void *arr1, const void *arr2, size_t n) {
-    char *it1 = (char*)arr1;
-    char *it2 = (char*)arr2;
-
+static bool myStrcmp(const char *str1, const char *str2, size_t n) {
     for (size_t i = 0; i < n; ++i) {
-        if (it1[i] != it2[i]) {
-            return false;
+        if (str1[i] == END_STR
+                    || str2[i] == END_STR
+                    || str1[i] != str2[i]) {
+            return str1[i] == str2[i];
         }
     }
     return true;
 }
+
 
 /*!
  * \brief Парсит строку.
@@ -330,14 +333,14 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
     const char *it1 = json;
     const char *it2 = NULL;
     it1 = firstChar(json);
-    if (myMemcmp(it1, NULL_STR, NULL_STR_LEN)) {
+    if (strcmp(it1, NULL_STR)) {
         pCurrent->type = JsonTypeNull;
         it1 += NULL_STR_LEN;
-    } else if (myMemcmp(it1, FALSE_STR, FALSE_STR_LEN)) {
+    } else if (strcmp(it1, FALSE_STR)) {
         pCurrent->type = JsonTypeBool;
         pCurrent->number = 0;
         it1 += FALSE_STR_LEN;
-    } else if (myMemcmp(it1, TRUE_STR, TRUE_STR_LEN)) {
+    } else if (strcmp(it1, TRUE_STR)) {
         pCurrent->type = JsonTypeBool;
         pCurrent->number = 1;
         it1 += TRUE_STR_LEN;
@@ -477,6 +480,29 @@ void freeJsonCStructFull(JsonCStruct jStruct) {
     free((void*)jStruct.jsonTextFull);
 }
 
+
+JsonItem *findChildStr(const JsonItem *root, const char *key, size_t keyLen) {
+    if (!root) {
+        return NULL;
+    }
+    for (size_t i = 0; i < root->childrenCount; ++i) {
+        if (root->childrenList[i].keyLen == keyLen &&
+                myStrcmp(key, root->childrenList[i].key, keyLen)) {
+            return root->childrenList + i;
+        }
+    }
+    return NULL;
+}
+
+JsonItem *findChildIndex(JsonItem *root, size_t index) {
+    if (index == INIT_LEN
+            || root->type != JsonTypeArray
+            || root->childrenCount <= index) {
+        return NULL;
+    }
+    return root->childrenList + index;
+}
+
 int32_t fprintJsonItem(FILE *file, const JsonItem *item) {
     return fprintJsonItemOffset(file, item, 0);
 }
@@ -545,9 +571,9 @@ const size_t INTO_SIZE = 2;
  */
 static void initKeyItem(KeyItem *r) {
     r->keyStr = NULL;
-    r->keyStrLen = UINT32_MAX;
+    r->keyStrLen = INIT_LEN;
     r->child = NULL;
-    r->index = UINT32_MAX;
+    r->index = INIT_LEN;
 }
 
 /*!
@@ -620,27 +646,17 @@ JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root) {
         return NULL;
     }
     JsonItem *child = NULL;
-    for (size_t i = 0; i < root->childrenCount; ++i) {
-        if (root->childrenList[i].keyLen == keyItem->keyStrLen
-                && myMemcmp(root->childrenList[i].key, keyItem->keyStr, keyItem->keyStrLen)) {
-            child = root->childrenList + i;
-            break;
-        }
-    }
+    child = findChildStr(root, keyItem->keyStr, keyItem->keyStrLen);
     if (!child) {
         printf("could not find key");
         return NULL;
     }
-    if (keyItem->index != UINT32_MAX) {
-        if (child->type != JsonTypeArray) {
-            printf("bad itemType");
+    if (keyItem->index != INIT_LEN) {
+        child = findChildIndex(child, keyItem->index);
+        if (!child) {
+            printf("could not find index");
             return NULL;
         }
-        if (child->childrenCount <= keyItem->index) {
-            printf("out of range");
-            return NULL;
-        }
-        child = child->childrenList + keyItem->index;
     }
     if (keyItem->child) {
         child = getItem(keyItem->child, child);
@@ -648,3 +664,14 @@ JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root) {
     return child;
 }
 
+
+JsonItem *getItemStr(const char *keyPath, const JsonItem *root) {
+    KeyItem *keyItem = NULL;
+    bool err = parseKeyPath(keyPath, &keyItem);
+    if (err || !keyItem) {
+        return NULL;
+    }
+    JsonItem *resultItem = getItem(keyItem, root);
+    freeKeyItem(keyItem);
+    return resultItem;
+}

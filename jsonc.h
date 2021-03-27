@@ -83,7 +83,14 @@ JsonCStruct openJsonFromStr(const char *jsonTextFull);
  */
 JsonCStruct openJsonFromFile(const char *fileName);
 
+/*!
+ * \brief Сохраняет в JSON формате.
+ * \param fileName - имя файла.
+ * \param jStruct - структура JSON.
+ * \return код ошибки.
+ */
 JsonErrorEnum saveJsonFile(const char *fileName, JsonCStruct jStruct);
+
 /*!
  * \brief Освобождает память parentItem и потомков.
  * \param jStruct - структура, которую возвращает openJsonFile.
@@ -95,6 +102,26 @@ void freeJsonCStruct(JsonCStruct jStruct);
  * \param jStruct - структура, которую возвращает openJsonFile.
  */
 void freeJsonCStructFull(JsonCStruct jStruct);
+
+/*!
+ * \brief Находит дочерний элемент по ключу.
+ * \param root - элемент поиска.
+ * \param key - ключ поиска.
+ * \param keyLen - максимальная длина ключа.
+ * \return NULL если не находит, иначе дочерний элемент.
+ */
+JsonItem *findChildStr(const JsonItem *root, const char *key, size_t keyLen);
+
+/*!
+ * \brief Находит дочерний элемент по индексу.
+ *
+ * Важно, root должен иметь тип массив.
+ * \param root - элемент поиска.
+ * \param index - индекс дочернего элемента.
+ * \return NULL если root не массив или index > root.childrenCount, иначе
+ * дочерний элемент.
+ */
+JsonItem *findChildIndex(JsonItem *root, size_t index);
 
 /*!
  * \brief Записывает Json в файл.
@@ -137,6 +164,8 @@ extern const size_t INTO_SIZE; // 2
 
 /*!
  * \brief Структура парсинга пути.
+ *
+ * Ссылается на строку. Важно, чтобы строка не была удалена.
  */
 typedef struct KeyItemTypeDef {
     const char *keyStr;
@@ -155,16 +184,29 @@ typedef struct KeyItemTypeDef {
  */
 bool parseKeyPath(const char *keyPath, KeyItem **keyItem);
 
+/*!
+ * \brief Освобождает память keyItem и потомков.
+ * \param keyItem - структура начиная с которого все удалится.
+ */
 void freeKeyItem(KeyItem *keyItem);
 
 /*!
- * \brief Поиск элемента по ключу.
+ * \brief Поиск элемента по KeyItem.
  * \param keyItem - инициализированный ключ.
- * \param root - элемент с которого начинается поиск.
+ * \param root - элемент, с которого начинается поиск.
  * \return найденный элемент.
  */
 JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root);
 
+/*!
+ * \brief Поиск элемента по строке.
+ *
+ * Пример keyPath: "\"pins\"[3]->\"position\"[1]->\"slot\"\0".
+ * \param keyPath - строка поиска.
+ * \param root - элемент, с которого начинается поиск.
+ * \return найденный элемент.
+ */
+JsonItem *getItemStr(const char *keyPath, const JsonItem *root);
 
 #if defined(__cplusplus) || defined(__cplusplus__)
 }
