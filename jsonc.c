@@ -554,6 +554,7 @@ bool removeChild(JsonItem *pChild) {
     if (ind == SIZE_MAX) {
         return false;
     }
+    freeJsonItemChild(pChild);
     JsonItem *parent = pChild->parent;
     for (size_t i = ind; i < parent->childrenCount - 1; ++i) {
         parent->childrenList[i] = parent->childrenList[i + 1];

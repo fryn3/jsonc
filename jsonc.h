@@ -164,7 +164,7 @@ size_t indexOfChild(JsonItem* pChild);
 bool reserveChildCount(JsonItem *pCurrent, size_t childrenReserve);
 
 /*!
- * \brief Удаляет потомка у родителя (без освобождения памяти).
+ * \brief Удаляет потомка у родителя.
  *
  * Внимание, возможно смещение указателей у "братьев".
  * \param pChild - указатель на потомка.
