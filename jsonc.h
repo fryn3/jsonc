@@ -12,15 +12,15 @@ extern "C" {
 
 /// Типы ошибок.
 typedef enum {
-    JsonSuccess,        // нет ошибок.
-    JsonJustInit,       // дефолтное значение.
-    JsonErrorUnknow,    // ошибка без описания, ошибка в коде.
-    JsonErrorEnd,       // неожиданный конец.
-    JsonErrorSyntax,    // ошибка в синтаксисе.
-    JsonErrorKey,       // ошибка в ключе (ключ без кавычек и тд).
-    JsonErrorValue,     // ошибка в значении.
-    JsonErrorFile,      // ошибка связана с работой с файлом.
-    JsonErrorPath,      // ошибка в keyPath.
+    JsonSuccess,        // (0) нет ошибок.
+    JsonJustInit,       // (1) дефолтное значение.
+    JsonErrorUnknow,    // (2) ошибка без описания, ошибка в коде.
+    JsonErrorEnd,       // (3) неожиданный конец.
+    JsonErrorSyntax,    // (4) ошибка в синтаксисе.
+    JsonErrorKey,       // (5) ошибка в ключе (ключ без кавычек и тд).
+    JsonErrorValue,     // (6) ошибка в значении.
+    JsonErrorFile,      // (7) ошибка связана с работой с файлом.
+    JsonErrorPath,      // (8) ошибка в keyPath.
 
     JsonErrorCount
 } JsonErrorEnum;
@@ -107,27 +107,76 @@ void freeJsonCStructFull(JsonCStruct jStruct);
 /*!
  * \brief Создает инициализированный JsonItem.
  *
- * Не забыть вызвать freeJsonItem для освобождении памяти.
+ * Создает родительский объект. Не забыть вызвать freeJsonParent для
+ * освобождении памяти.
  * \return JsonItem.
  */
-JsonItem *createItem(void);
+JsonItem *createJsonParent(void);
 
 /*!
  * \brief Рекурсивно освобождает память.
  * \param item - объект удаления.
  */
-void freeJsonItem(JsonItem *item);
+bool freeJsonParent(JsonItem *item);
 
 /*!
  * \brief Рекурсивно освобождает память так же у полей key & str.
  * \param item - объект удаления.
  */
-void freeJsonItemFull(JsonItem *item);
+bool freeJsonItemFull(JsonItem *item);
+
+/*!
+ * \brief Находит дочерний элемент по ключу.
+ * \param root - элемент поиска.
+ * \param key - ключ поиска.
+ * \param keyLen - максимальная длина ключа.
+ * \return NULL если не находит, иначе дочерний элемент.
+ */
+JsonItem *findChildKey(const JsonItem *root, const char *key);
+JsonItem *findChildKeyLen(const JsonItem *root, const char *key, size_t keyLen);
+
+/*!
+ * \brief Находит дочерний элемент по индексу.
+ *
+ * Важно, root должен иметь тип массив.
+ * \param root - элемент поиска.
+ * \param index - индекс дочернего элемента.
+ * \return NULL если root не массив или index > root.childrenCount, иначе
+ * дочерний элемент.
+ */
+JsonItem *findChildIndex(JsonItem *root, size_t index);
+
+/*!
+ * \brief Находит индекс элемента child у родителя.
+ * \param child - потомок.
+ * \return индекс потомка, иначе SIZE_MAX.
+ */
+size_t indexOfChild(JsonItem* pChild);
+
+/*!
+ * \brief Резервирует память, для потомков без инициализации.
+ *
+ * Не удаляет текущих потомков. Для инициализации использовать addChild*().
+ * Внимание, возможно смещение указателей у "братьев".
+ * \param pCurrent - элемент родитель. Должен иметь тип Object | Array.
+ * \param childrenReserve - количество инициализации.
+ */
+bool reserveChildCount(JsonItem *pCurrent, size_t childrenReserve);
+
+/*!
+ * \brief Удаляет потомка у родителя (без освобождения памяти).
+ *
+ * Внимание, возможно смещение указателей у "братьев".
+ * \param pChild - указатель на потомка.
+ * \return true при удаче, иначе false.
+ */
+bool removeChild(JsonItem *pChild);
 
 /*!
  * \brief Добавляет вложенный элемент с инициализированным родителем.
  *
- * Текущий элемент должен быть массивом или объектом.
+ * Текущий элемент должен быть массивом или объектом. Для избежания смещение
+ * указателей, можно заранее зарезервировать необходимое количество.
  * \param pCurrent - элемент родитель.
  * \return указатель на вложенный элемент.
  */
@@ -186,26 +235,6 @@ JsonItem *addChildStrLen(JsonItem *pCurrent, const char *str, size_t strLen);
 JsonItem *addChildKeyStr(JsonItem *pCurrent, const char *key, const char *str);
 JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str);
 JsonItem *addChildKeyLenStrLen(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str, size_t strLen);
-
-/*!
- * \brief Находит дочерний элемент по ключу.
- * \param root - элемент поиска.
- * \param key - ключ поиска.
- * \param keyLen - максимальная длина ключа.
- * \return NULL если не находит, иначе дочерний элемент.
- */
-JsonItem *findChildStr(const JsonItem *root, const char *key, size_t keyLen);
-
-/*!
- * \brief Находит дочерний элемент по индексу.
- *
- * Важно, root должен иметь тип массив.
- * \param root - элемент поиска.
- * \param index - индекс дочернего элемента.
- * \return NULL если root не массив или index > root.childrenCount, иначе
- * дочерний элемент.
- */
-JsonItem *findChildIndex(JsonItem *root, size_t index);
 
 /*!
  * \brief Записывает Json в файл.

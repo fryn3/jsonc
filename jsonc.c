@@ -185,7 +185,7 @@ static const char *myAtof(const char *str, double *number) {
         // "." -- если введена только точка до 'e' || 'E'.
         return NULL;
     }
-    char * const doubleStr = malloc((i + 1) * sizeof (char));
+    char * const doubleStr = malloc((i + 1) * sizeof(char));
     if (doubleStr == NULL) { return NULL; }
     memcpy(doubleStr, it, i);
     doubleStr[i] = 0;
@@ -303,7 +303,9 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
     const char *it1 = json;
     const char *it2 = NULL;
     it1 = firstChar(json);
-    if (strcmp(it1, NULL_STR) == 0) {
+    if (!it1) {
+        return NULL;
+    } else if (strcmp(it1, NULL_STR) == 0) {
         pCurrent->type = JsonTypeNull;
         it1 += NULL_STR_LEN;
     } else if (strcmp(it1, FALSE_STR) == 0) {
@@ -376,6 +378,28 @@ static const char *parseValue(const char *json, JsonItem **ppCurrent, JsonCStruc
     return it1;
 }
 
+static void freeJsonItemChild(JsonItem *item) {
+    if (!item) {
+        return;
+    }
+    for (size_t i = 0; i < item->childrenCount; ++i) {
+        freeJsonItemChild(item);
+    }
+    free(item->childrenList);
+}
+
+static void freeJsonItemChildFull(JsonItem *item) {
+    if (!item) {
+        return;
+    }
+    for (size_t i = 0; i < item->childrenCount; ++i) {
+        freeJsonItemChild(item);
+    }
+    free((void*)item->key);
+    free((void*)item->str);
+    free(item->childrenList);
+}
+
 JsonCStruct openJsonFromStr(const char *jsonTextFull) {
     JsonItem *jCurrent = NULL;
     JsonCStruct *jStruct = NULL;
@@ -409,11 +433,7 @@ JsonCStruct openJsonFromFile(const char *fileName) {
     }
 
     size_t result = fread(buffer, 1, lSize, ptrFile) + 1;
-    buffer[lSize - 1] = 0; // добавления нулевого символа
-    if (result != (size_t)lSize) {
-        r.error = JsonErrorFile;
-        return r;
-    }
+    buffer[result + 1] = 0; // добавления нулевого символа
     return openJsonFromStr(buffer);
 }
 
@@ -426,7 +446,7 @@ int32_t saveJsonCStruct(const char *fileName, JsonCStruct jStruct) {
 }
 
 void freeJsonCStruct(JsonCStruct jStruct) {
-    freeJsonItem(jStruct.rootItem);
+    freeJsonParent(jStruct.rootItem);
 }
 
 void freeJsonCStructFull(JsonCStruct jStruct) {
@@ -434,26 +454,113 @@ void freeJsonCStructFull(JsonCStruct jStruct) {
     free((void*)jStruct.jsonTextFull);
 }
 
-JsonItem *createItem(void) {
-    JsonItem *jIt = (JsonItem*)malloc(sizeof (JsonItem));
+JsonItem *createJsonParent(void) {
+    JsonItem *jIt = (JsonItem*)malloc(sizeof(JsonItem));
     initJsonItem(jIt);
+    jIt->type = JsonTypeObject;
     return jIt;
 }
 
-void freeJsonItem(JsonItem *item) {
-    if (item->childrenList) {
-        freeJsonItem(item->childrenList);
+bool freeJsonParent(JsonItem *item) {
+    if (!item || item->parent) {
+        return false;
     }
+    freeJsonItemChild(item->childrenList);
     free(item);
+    return true;
 }
 
-void freeJsonItemFull(JsonItem *item) {
-    if (item->childrenList) {
-        freeJsonItemFull(item->childrenList);
+bool freeJsonItemFull(JsonItem *item) {
+    if (!item || item->parent) {
+        return false;
     }
+    freeJsonItemChildFull(item->childrenList);
     free((void*)item->key);
     free((void*)item->str);
     free(item);
+    return true;
+}
+
+JsonItem *findChildKey(const JsonItem *root, const char *key) {
+    return findChildKeyLen(root, key, strlen(key));
+}
+
+JsonItem *findChildKeyLen(const JsonItem *root, const char *key, size_t keyLen) {
+    if (!root) {
+        return NULL;
+    }
+    for (size_t i = 0; i < root->childrenCount; ++i) {
+        if (root->childrenList[i].keyLen == keyLen &&
+                myStrcmp(key, root->childrenList[i].key, keyLen)) {
+            return root->childrenList + i;
+        }
+    }
+    return NULL;
+}
+
+JsonItem *findChildIndex(JsonItem *root, size_t index) {
+    if (index == INIT_LEN
+            || root->type != JsonTypeArray
+            || root->childrenCount <= index) {
+        return NULL;
+    }
+    return root->childrenList + index;
+}
+
+size_t indexOfChild(JsonItem* pChild) {
+    JsonItem *parent = pChild->parent;
+    if (!parent
+            || (parent->type != JsonTypeArray
+                && parent->type != JsonTypeObject)) {
+        return SIZE_MAX;
+    }
+    if (pChild < parent->childrenList
+            || pChild > parent->childrenList + parent->childrenCount) {
+        return SIZE_MAX;
+    }
+    return parent->childrenList - pChild;
+}
+
+bool reserveChildCount(JsonItem *pCurrent, size_t childrenReserve) {
+    if (!pCurrent
+            || (pCurrent->type != JsonTypeArray
+                && pCurrent->type != JsonTypeObject)) {
+        return false;
+    }
+    childrenReserve = childrenReserve >= pCurrent->childrenCount ?
+                                childrenReserve : pCurrent->childrenCount;
+    if (childrenReserve == pCurrent->_childrenReserve) {
+        return true;
+    }
+    /// \todo необходимо проверить работу realloc().
+    void *newList = realloc(pCurrent->childrenList,
+                                     childrenReserve * sizeof(JsonItem));
+    if (!newList) {
+        return false;
+    }
+    pCurrent->childrenList = newList;
+    for (size_t i = 0; i < pCurrent->childrenCount; ++i) {
+        for (size_t j = 0; j < pCurrent->childrenList[i].childrenCount; ++j) {
+            pCurrent->childrenList[i].childrenList[j].parent
+                                                = pCurrent->childrenList + i;
+        }
+    }
+    pCurrent->_childrenReserve = childrenReserve;
+    return true;
+}
+
+bool removeChild(JsonItem *pChild) {
+    size_t ind = indexOfChild(pChild);
+    if (ind == SIZE_MAX) {
+        return false;
+    }
+    JsonItem *parent = pChild->parent;
+    for (size_t i = ind; i < parent->childrenCount - 1; ++i) {
+        parent->childrenList[i] = parent->childrenList[i + 1];
+    }
+    --parent->childrenCount;
+    initJsonItem(parent->childrenList + parent->childrenCount);
+    return true;
 }
 
 JsonItem *addChild(JsonItem *pCurrent) {
@@ -463,20 +570,10 @@ JsonItem *addChild(JsonItem *pCurrent) {
     }
     if (pCurrent->_childrenReserve == pCurrent->childrenCount) {
         if (pCurrent->_childrenReserve == 0) {
-            pCurrent->_childrenReserve = 1;
+            reserveChildCount(pCurrent, 1);
         } else {
-            pCurrent->_childrenReserve *= 2;
+            reserveChildCount(pCurrent, pCurrent->childrenCount * 2);
         }
-        JsonItem *jNewArray = malloc(pCurrent->_childrenReserve * sizeof (JsonItem));
-        if (jNewArray == NULL) { return NULL; }
-        for (size_t i = 0; i < pCurrent->childrenCount; ++i) {
-            jNewArray[i] = pCurrent->childrenList[i];
-            for (size_t j = 0; j < jNewArray[i].childrenCount; ++j) {
-                jNewArray[i].childrenList[j].parent = jNewArray + i;
-            }
-        }
-        free(pCurrent->childrenList);
-        pCurrent->childrenList = jNewArray;
     }
     JsonItem *child = &pCurrent->childrenList[pCurrent->childrenCount];
     initJsonItem(child);
@@ -534,6 +631,9 @@ JsonItem *addChildKeyLenBool(JsonItem *pCurrent, const char *key, size_t keyLen,
 
 JsonItem *addChildNumber(JsonItem *pCurrent, double number) {
     JsonItem *r = addChild(pCurrent);
+    if (!r) {
+        return r;
+    }
     r->type = JsonTypeNumber;
     r->number = number;
     return r;
@@ -603,28 +703,6 @@ JsonItem *addChildKeyLenStrLen(JsonItem *pCurrent, const char *key, size_t keyLe
     return r;
 }
 
-JsonItem *findChildStr(const JsonItem *root, const char *key, size_t keyLen) {
-    if (!root) {
-        return NULL;
-    }
-    for (size_t i = 0; i < root->childrenCount; ++i) {
-        if (root->childrenList[i].keyLen == keyLen &&
-                myStrcmp(key, root->childrenList[i].key, keyLen)) {
-            return root->childrenList + i;
-        }
-    }
-    return NULL;
-}
-
-JsonItem *findChildIndex(JsonItem *root, size_t index) {
-    if (index == INIT_LEN
-            || root->type != JsonTypeArray
-            || root->childrenCount <= index) {
-        return NULL;
-    }
-    return root->childrenList + index;
-}
-
 int32_t fprintJsonItem(FILE *file, const JsonItem *item) {
     return fprintJsonItemOffset(file, item, 0);
 }
@@ -635,7 +713,7 @@ int32_t fprintJsonItemOffset(FILE *file, const JsonItem *item, uint32_t offset) 
     for (uint32_t i = 0; i < offset; ++i) {
         printSize += fprintf(file, "%s", offsetStr);
     }
-    if (item->parent && item->parent->type!= JsonTypeArray) {
+    if (item->parent && item->parent->type != JsonTypeArray) {
         printSize += fprintf(file, "\"%*.*s\": ", (int32_t)item->keyLen, (int32_t)item->keyLen, item->key);
     }
     switch (item->type) {
@@ -763,6 +841,9 @@ bool parseKeyPath(const char *keyPath, KeyItem **keyItem) {
 }
 
 void freeKeyItem(KeyItem *keyItem) {
+    if (!keyItem) {
+        return;
+    }
     if (keyItem->child) {
         freeKeyItem(keyItem->child);
     }
@@ -775,7 +856,7 @@ JsonItem *getItem(const KeyItem *keyItem, const JsonItem *root) {
         return NULL;
     }
     JsonItem *child = NULL;
-    child = findChildStr(root, keyItem->keyStr, keyItem->keyStrLen);
+    child = findChildKeyLen(root, keyItem->keyStr, keyItem->keyStrLen);
     if (!child) {
         printf("could not find key");
         return NULL;
