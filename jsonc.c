@@ -683,6 +683,15 @@ JsonItem *addChildKeyStr(JsonItem *pCurrent, const char *key, const char *str) {
     return r;
 }
 
+JsonItem *addChildKeyStrLen(JsonItem *pCurrent, const char *key, const char *str, size_t strLen) {
+    JsonItem *r = addChild(pCurrent);
+    r->type = JsonTypeString;
+    r->key = key;
+    r->keyLen = strlen(key);
+    r->str = str;
+    r->strLen = strLen;
+}
+
 JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str) {
     JsonItem *r = addChild(pCurrent);
     r->type = JsonTypeString;

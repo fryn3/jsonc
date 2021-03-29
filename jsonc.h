@@ -233,6 +233,7 @@ JsonItem *addChildKeyLenNumber(JsonItem *pCurrent, const char *key, size_t keyLe
 JsonItem *addChildStr(JsonItem *pCurrent, const char *str);
 JsonItem *addChildStrLen(JsonItem *pCurrent, const char *str, size_t strLen);
 JsonItem *addChildKeyStr(JsonItem *pCurrent, const char *key, const char *str);
+JsonItem *addChildKeyStrLen(JsonItem *pCurrent, const char *key, const char *str, size_t strLen);
 JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str);
 JsonItem *addChildKeyLenStrLen(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str, size_t strLen);
 
