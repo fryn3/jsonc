@@ -691,6 +691,7 @@ JsonItem *addChildKeyStrLen(JsonItem *pCurrent, const char *key, const char *str
     r->keyLen = strlen(key);
     r->str = str;
     r->strLen = strLen;
+    return r;
 }
 
 JsonItem *addChildKeyLenStr(JsonItem *pCurrent, const char *key, size_t keyLen, const char *str) {
