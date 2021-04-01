@@ -486,7 +486,7 @@ JsonItem *findChildKey(const JsonItem *root, const char *key) {
 }
 
 JsonItem *findChildKeyLen(const JsonItem *root, const char *key, size_t keyLen) {
-    if (!root) {
+    if (!root || root->type != JsonTypeObject) {
         return NULL;
     }
     for (size_t i = 0; i < root->childrenCount; ++i) {
