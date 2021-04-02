@@ -383,7 +383,7 @@ static void freeJsonItemChild(JsonItem *item) {
         return;
     }
     for (size_t i = 0; i < item->childrenCount; ++i) {
-        freeJsonItemChild(item);
+        freeJsonItemChild(item->childrenList + i);
     }
     free(item->childrenList);
 }
