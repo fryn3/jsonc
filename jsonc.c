@@ -432,8 +432,9 @@ JsonCStruct openJsonFromFile(const char *fileName) {
         return r;
     }
 
-    size_t result = fread(buffer, 1, lSize, ptrFile) + 1;
-    buffer[result + 1] = 0; // добавления нулевого символа
+    size_t result = fread(buffer, 1, lSize, ptrFile);
+    fclose(ptrFile);
+    buffer[result] = 0; // добавления нулевого символа
     return openJsonFromStr(buffer);
 }
 
