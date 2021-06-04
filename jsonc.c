@@ -7,17 +7,17 @@
 /*!
  * \brief Признак окончания строки.
  */
-const char END_STR = 0;
+static const char END_STR = 0;
 
 /*!
  * \brief Ключевые слова и их длина.
  */
-const char * const NULL_STR = "null";
-const size_t NULL_STR_LEN = 4;
-const char * const FALSE_STR = "false";
-const size_t FALSE_STR_LEN = 5;
-const char * const TRUE_STR = "true";
-const size_t TRUE_STR_LEN = 4;
+static const char * const NULL_STR = "null";
+static const size_t NULL_STR_LEN = 4;
+static const char * const FALSE_STR = "false";
+static const size_t FALSE_STR_LEN = 5;
+static const char * const TRUE_STR = "true";
+static const size_t TRUE_STR_LEN = 4;
 
 static const size_t INIT_LEN = SIZE_MAX;
 
@@ -443,7 +443,10 @@ int32_t saveJsonCStruct(const char *fileName, JsonCStruct jStruct) {
     if (ptrFile == NULL) {
         return -1;
     }
-    return fprintJsonItem(ptrFile, jStruct.rootItem);
+    int32_t res = fprintJsonItem(ptrFile, jStruct.rootItem);
+    fclose(ptrFile);
+
+    return res;
 }
 
 void freeJsonCStruct(JsonCStruct jStruct) {
@@ -777,7 +780,11 @@ int32_t saveJsonItem(const char *fileName, const JsonItem* root) {
     if (ptrFile == NULL) {
         return -1;
     }
-    return fprintJsonItem(ptrFile, root);
+    int32_t res = fprintJsonItem(ptrFile, root);
+
+    fclose(ptrFile);
+
+    return res;
 }
 // KeyPath
 
